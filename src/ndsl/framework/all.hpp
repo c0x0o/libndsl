@@ -37,7 +37,7 @@ class Pollable {
     ERROR = 4,
     RDCLOSED = 8,
     WRCLOSED = 16,
-    DEFAULT_FLAGS = 0 | RDCLOSED | WRCLOSED
+    DEFAULT_FLAGS = 0
   };
   Pollable(int fd = -1, int events = EPOLLIN | EPOLLOUT | EPOLLET,
            uint32_t flags = DEFAULT_FLAGS)
@@ -67,9 +67,9 @@ class Pollable {
   void SetEvents(int events) { events_ = events; }
   void SetHostLoop(EventLoop *loop) { host_loop_ = loop; }
 
-  virtual void HandleErrorEvent() {}
-  virtual void HandleReadEvent() {}
-  virtual void HandleWriteEvent() {}
+  virtual int HandleErrorEvent() { return 0; }
+  virtual int HandleReadEvent() { return 0; }
+  virtual int HandleWriteEvent() { return 0; }
 
  protected:
   EventLoop *host_loop_;

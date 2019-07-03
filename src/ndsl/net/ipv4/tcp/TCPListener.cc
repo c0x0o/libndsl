@@ -23,9 +23,12 @@ void TCPListener::RaiseAllEvent(int result, int error) {
   }
 }
 
-void TCPListener::HandleErrorEvent() { RaiseAllEvent(-1); }
+int TCPListener::HandleErrorEvent() {
+  RaiseAllEvent(-1);
+  return 0;
+}
 
-void TCPListener::HandleReadEvent() {
+int TCPListener::HandleReadEvent() {
   while (request_list_.size()) {
     ConnectionEvent::Pointer &eventp = request_list_.front();
 
@@ -40,7 +43,7 @@ void TCPListener::HandleReadEvent() {
       }
 
       RaiseAllEvent(-1, errno);
-      return;
+      return 0;
     } else {
       TCPConnection *connection = eventp->connection();
 
@@ -52,4 +55,6 @@ void TCPListener::HandleReadEvent() {
       RaiseEvent(connfd);
     }
   }
+
+  return request_list_.size();
 }

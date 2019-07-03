@@ -95,7 +95,16 @@ int ndsl::net::ipv4::tcp::accept(TCPListener *listener,
                                  TCPConnection *connection,
                                  YieldContext &context) {
   ConnectionEvent::Pointer evp = accept(listener, connection);
-  Coroutine::Yield(context);
+
+  if (listener->readable()) {
+    int remained = listener->HandleReadEvent();
+
+    if (remained > 0) {
+      Coroutine::Yield(context);
+    }
+  } else {
+    Coroutine::Yield(context);
+  }
 
   errno = evp->error_number();
   return evp->result();
@@ -115,7 +124,16 @@ ReadRequestEvent::Pointer ndsl::net::ipv4::tcp::read(TCPConnection *connection,
 int ndsl::net::ipv4::tcp::read(TCPConnection *connection, MutableBuffer buffer,
                                YieldContext &context) {
   ReadRequestEvent::Pointer evp = read(connection, buffer);
-  Coroutine::Yield(context);
+
+  if (connection->readable()) {
+    int remained = connection->HandleReadEvent();
+
+    if (remained > 0) {
+      Coroutine::Yield(context);
+    }
+  } else {
+    Coroutine::Yield(context);
+  }
 
   errno = evp->error_number();
   return evp->result();
@@ -135,7 +153,16 @@ WriteRequestEvent::Pointer ndsl::net::ipv4::tcp::write(
 int ndsl::net::ipv4::tcp::write(TCPConnection *connection, ConstBuffer buffer,
                                 YieldContext &context) {
   WriteRequestEvent::Pointer evp = write(connection, buffer);
-  Coroutine::Yield(context);
+
+  if (connection->writeable()) {
+    int remained = connection->HandleWriteEvent();
+
+    if (remained > 0) {
+      Coroutine::Yield(context);
+    }
+  } else {
+    Coroutine::Yield(context);
+  }
 
   errno = evp->error_number();
   return evp->result();

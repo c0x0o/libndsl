@@ -29,9 +29,9 @@ class TCPConnection : public framework::Pollable {
   const ipv4::EndPoint &local() const { return local_; }
   const ipv4::EndPoint &peer() const { return peer_; }
 
-  void HandleReadEvent() override;
-  void HandleWriteEvent() override;
-  void HandleErrorEvent() override;
+  int HandleReadEvent() override;
+  int HandleWriteEvent() override;
+  int HandleErrorEvent() override;
 
   friend ReadRequestEvent::Pointer read(TCPConnection *connection,
                                         MutableBuffer buffer);
@@ -74,9 +74,8 @@ class TCPListener : public framework::Pollable {
 
   const EndPoint &local() const { return local_; }
 
-  void HandleErrorEvent() override;
-  void HandleReadEvent() override;
-  void HandleWriteEvent() override {}
+  int HandleErrorEvent() override;
+  int HandleReadEvent() override;
 
   friend ConnectionEvent::Pointer accept(TCPListener *listener,
                                          TCPConnection *connection);

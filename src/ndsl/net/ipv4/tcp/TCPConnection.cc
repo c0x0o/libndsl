@@ -43,18 +43,19 @@ void TCPConnection::RaiseAllWriteEvent(int result, int error) {
   }
 }
 
-void TCPConnection::HandleErrorEvent() {
+int TCPConnection::HandleErrorEvent() {
   RaiseAllReadEvent(-1);
   RaiseAllWriteEvent(-1);
+
+  return 0;
 }
 
-void TCPConnection::HandleReadEvent() {
+int TCPConnection::HandleReadEvent() {
   while (read_requests_.size()) {
     ReadRequestEvent::Pointer &eventp = read_requests_.front();
     MutableBuffer &buff = eventp->GetBuffer();
 
     int nread = 0;
-    int total = 0;
 
     do {
       nread = ::read(fd_, buff.data(), buff.size());
@@ -68,33 +69,33 @@ void TCPConnection::HandleReadEvent() {
         SetFlags(RDCLOSED | WRCLOSED | ERROR);
         RaiseAllReadEvent(-1, errno);
         RaiseAllWriteEvent(-1, errno);
-
-        return;
+        return 0;
       } else if (nread == 0) {
         // read end closed
         AltFlags(RDCLOSED, RDCLOSED | READABLE);
-        RaiseAllReadEvent(total);
-        return;
+        RaiseReadEvent(buff.orginal_size() - buff.size());
+        RaiseAllReadEvent(0);
+        return 0;
       } else {
         buff += nread;
-        total += nread;
 
         if (buff.size() == 0) {
-          RaiseReadEvent(total);
+          RaiseReadEvent(buff.orginal_size());
           break;
         }
       }
     } while (nread > 0);
   }
+
+  return read_requests_.size();
 }
 
-void TCPConnection::HandleWriteEvent() {
+int TCPConnection::HandleWriteEvent() {
   while (write_requests_.size()) {
     WriteRequestEvent::Pointer &eventp = write_requests_.front();
     ConstBuffer &buff = eventp->GetBuffer();
 
     int nwrite = 0;
-    int total = 0;
 
     do {
       nwrite = ::write(fd_, buff.data(), buff.size());
@@ -113,17 +114,18 @@ void TCPConnection::HandleWriteEvent() {
           SetFlags(RDCLOSED | WRCLOSED | ERROR);
           RaiseAllReadEvent(-1, errno);
           RaiseAllWriteEvent(-1, errno);
-          return;
+          return 0;
         }
       } else {
         buff += nwrite;
-        total += nwrite;
 
         if (buff.size() == 0) {
-          RaiseWriteEvent(nwrite);
+          RaiseWriteEvent(buff.original_size());
           break;
         }
       }
     } while (nwrite > 0);
   }
+
+  return write_requests_.size();
 }

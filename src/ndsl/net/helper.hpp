@@ -12,10 +12,11 @@ int SetNonblocking(int fd);
 class MutableBuffer {
  public:
   MutableBuffer(void *mem, size_t size)
-      : data_(static_cast<char *>(mem)), size_(size) {}
+      : data_(static_cast<char *>(mem)), size_(size), original_size_(size) {}
 
   char *data() const { return data_; }
   size_t size() const { return size_; }
+  size_t orginal_size() const { return original_size_; }
   void operator+=(size_t len) {
     if (len > size_) return;
     data_ += len;
@@ -25,15 +26,19 @@ class MutableBuffer {
  private:
   char *data_;
   size_t size_;
+  size_t original_size_;
 };
 
 class ConstBuffer {
  public:
   ConstBuffer(const void *mem, size_t size)
-      : data_(static_cast<const char *>(mem)), size_(size) {}
+      : data_(static_cast<const char *>(mem)),
+        size_(size),
+        original_size_(size) {}
 
   const char *data() const { return data_; }
   size_t size() const { return size_; }
+  size_t original_size() const { return original_size_; }
   void operator+=(size_t len) {
     if (len > size_) return;
     data_ += len;
@@ -43,6 +48,7 @@ class ConstBuffer {
  private:
   const char *data_;
   size_t size_;
+  size_t original_size_;
 };
 
 class ReadRequestEvent : public ndsl::framework::Event {
