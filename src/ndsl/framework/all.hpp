@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <sys/epoll.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -13,6 +14,7 @@
 #include <memory>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include <ndsl/config.hpp>
@@ -127,14 +129,18 @@ class EventPointerCompare {
 class Service : public std::enable_shared_from_this<Service> {
  public:
   enum Status { STATUS_HUNG, STATUS_READY, STATUS_FINISHED };
+  enum { USER_USABLE_INIT_ID = 128 };
   using Pointer = std::shared_ptr<Service>;
-  using WaitList = std::set<Event::Pointer, EventPointerCompare>;
+  using WaitList = std::unordered_set<Event::Pointer>;
 
   static inline Service *GetCurrentService() { return current_service; }
+  static inline Service *SetCurrentService(Service *s) {
+    return current_service = s;
+  }
+  static uint64_t next_service_id() { return next_service_id_; }
 
-  Service(uint32_t service_type_id, uint32_t service_id, EventLoop *host)
-      : service_type_id_(service_type_id),
-        service_id_(service_id),
+  Service(EventLoop *host)
+      : service_id_(next_service_id_++),
         status_(STATUS_READY),
         host_loop_(host),
         next_event_id_(0) {}
@@ -142,8 +148,7 @@ class Service : public std::enable_shared_from_this<Service> {
   Service(const Service &service) = delete;
   Service &operator=(const Service &service) = delete;
 
-  uint32_t service_type_id() const { return service_type_id_; }
-  uint32_t service_id() const { return service_id_; }
+  uint64_t service_id() const { return service_id_; }
   enum Status status() const { return status_; }
   EventLoop *host_loop() const { return host_loop_; }
 
@@ -168,8 +173,8 @@ class Service : public std::enable_shared_from_this<Service> {
   WaitList wait_list_;
 
  private:
-  const uint32_t service_type_id_;
-  const uint32_t service_id_;
+  static std::atomic<uint64_t> next_service_id_;
+  const uint64_t service_id_;
   enum Status status_;
   EventLoop *host_loop_;
   uint64_t next_event_id_;
@@ -178,10 +183,12 @@ class Service : public std::enable_shared_from_this<Service> {
 class EventLoop : public std::enable_shared_from_this<EventLoop> {
  public:
   using Pointer = std::shared_ptr<EventLoop>;
-  using ServiceList = std::list<Service *>;
-  using ServiceMap = std::map<uint32_t, ServiceList>;
+  using ServiceMap = std::map<uint64_t, Service *>;
 
   static inline EventLoop *GetCurrentEventLoop() { return current_event_loop; }
+  static inline EventLoop *SetCurrentEventLoop(EventLoop *l) {
+    return current_event_loop = l;
+  }
 
   EventLoop() : running_(false) {
     if (current_event_loop == nullptr) {
@@ -195,26 +202,32 @@ class EventLoop : public std::enable_shared_from_this<EventLoop> {
   inline bool running() { return running_.load(std::memory_order_relaxed); }
 
   template <class ServiceType, typename... Args>
-  Service *MakeService(uint32_t type_id, Args... args) {
-    ServiceMap::iterator iter = services_.find(type_id);
+  ServiceType *MakeService(Args... args) {
+    ServiceMap::iterator iter = services_.find(Service::next_service_id());
 
-    if (iter != services_.end()) {
-      iter->second.push_back(new ServiceType(args...));
+    if (iter == services_.end()) {
+      ServiceType *s = new ServiceType(args...);
+      services_.insert(std::make_pair(s->service_id(), s));
 
-      return *(iter->second.rbegin());
+      return s;
     } else {
-      ServiceList list;
-      auto result = services_.emplace(std::make_pair(type_id, std::move(list)));
-
-      result.first->second.push_back(new ServiceType(args...));
-      return *(result.first->second.rbegin());
+      return nullptr;
     }
   }
-  Service *GetService(uint32_t type_id, uint32_t id);
+  template <class ServiceType>
+  ServiceType *GetService(uint64_t id) {
+    ServiceMap::iterator map_iter = services_.find(id);
+
+    if (map_iter == services_.end()) {
+      return nullptr;
+    }
+
+    return reinterpret_cast<ServiceType *>(map_iter->second);
+  }
+  void DestroyService(uint64_t id);
   int WatchPollerEvent(Pollable *pollable);
   int UnwatchPollerEvent(Pollable *pollable);
   int ModifyPollerEvent(Pollable *pollable);
-  void DestroyService(uint32_t type_id, uint32_t id);
   void Stop() { running_.store(false, std::memory_order_relaxed); }
   void RunOneTick();
   void Loop();

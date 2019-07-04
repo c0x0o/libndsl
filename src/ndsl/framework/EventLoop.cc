@@ -7,35 +7,14 @@ using ndsl::framework::Service;
 
 thread_local EventLoop *ndsl::framework::current_event_loop = nullptr;
 
-Service *EventLoop::GetService(uint32_t type_id, uint32_t id) {
-  ServiceMap::iterator map_iter = services_.find(type_id);
-  ServiceList::iterator list_iter;
+void EventLoop::DestroyService(uint64_t id) {
+  ServiceMap::iterator map_iter = services_.find(id);
 
-  if (map_iter == services_.end()) return nullptr;
-
-  for (list_iter = map_iter->second.begin();
-       list_iter != map_iter->second.end(); ++list_iter) {
-    if ((*list_iter)->service_id() == id) {
-      return *list_iter;
-    }
-  }
-
-  return nullptr;
-}
-
-void EventLoop::DestroyService(uint32_t type_id, uint32_t id) {
-  ServiceMap::iterator map_iter = services_.find(type_id);
-  ServiceList::iterator list_iter;
-
-  if (map_iter == services_.end()) return;
-
-  for (list_iter = map_iter->second.begin();
-       list_iter != map_iter->second.end(); ++list_iter) {
-    if ((*list_iter)->service_id() == id) {
-      delete *list_iter;
-      map_iter->second.erase(list_iter);
-      return;
-    }
+  if (map_iter == services_.end()) {
+    return;
+  } else {
+    delete map_iter->second;
+    services_.erase(map_iter);
   }
 }
 
@@ -66,12 +45,20 @@ void EventLoop::RunOneTick() {
     }
   }
 
-  for (auto i = services_.begin(); i != services_.end(); ++i) {
-    for (auto j = i->second.begin(); j != i->second.end(); ++j) {
-      if ((*j)->status() == Service::STATUS_READY) {
-        ndsl::framework::current_service = *j;
-        (*j)->Schedule();
-      }
+  for (auto i = services_.begin(); i != services_.end();) {
+    Service *s = i->second;
+
+    if (s->status() == Service::STATUS_READY) {
+      Service::SetCurrentService(s);
+      s->Schedule();
+    }
+
+    if (s->status() == Service::STATUS_FINISHED) {
+      auto temp = i;
+      ++i;
+      services_.erase(temp);
+    } else {
+      ++i;
     }
   }
 }

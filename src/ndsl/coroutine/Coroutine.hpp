@@ -45,13 +45,11 @@ class Coroutine : public framework::Service {
   bool finished() const { return finished_; }
   size_t stack_size() const { return stack_size_; }
 
-  void Schedule() override;
+  virtual void Schedule() override;
 
   ResumeType Resume(uint64_t data = 0, uint16_t cmd = 0);
 
  private:
-  static uint64_t coroutine_id_;
-
   size_t stack_size_;
   bool first_call_;
   bool finished_;

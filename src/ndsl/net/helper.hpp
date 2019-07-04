@@ -16,7 +16,7 @@ class MutableBuffer {
 
   char *data() const { return data_; }
   size_t size() const { return size_; }
-  size_t orginal_size() const { return original_size_; }
+  size_t original_size() const { return original_size_; }
   void operator+=(size_t len) {
     if (len > size_) return;
     data_ += len;

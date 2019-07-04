@@ -8,11 +8,9 @@ using ndsl::coroutine::internal::ndsl_swap_to;
 using ndsl::framework::EventLoop;
 using ndsl::framework::Service;
 
-uint64_t Coroutine::coroutine_id_ = 0;
-
 Coroutine::Coroutine(const MainFunction &func, EventLoop *loop,
                      size_t stack_size)
-    : Service(TypeId, coroutine_id_++, loop),
+    : Service(loop),
       stack_size_(stack_size),
       first_call_(true),
       finished_(false),

@@ -1,6 +1,8 @@
 #ifndef LIBNDSL_NET_IPV4_TCP_HPP_
 #define LIBNDSL_NET_IPV4_TCP_HPP_
 
+#include <sys/uio.h>
+
 #include <ndsl/coroutine/Coroutine.hpp>
 #include <ndsl/framework/all.hpp>
 #include <ndsl/net/helper.hpp>
