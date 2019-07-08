@@ -1,3 +1,5 @@
+#include <signal.h>
+
 #include <functional>
 #include <iostream>
 
@@ -98,8 +100,19 @@ Coroutine::ResumeType echo_server_function(YieldContext &context) {
   return 0;
 }
 
+void HandleCtrlC(int sig) {
+  std::cout << " Received Ctrl-C, exiting..." << std::endl;
+  exit(0);
+}
+
 int main() {
   EventLoop loop;
+
+  struct sigaction action;
+  action.sa_handler = HandleCtrlC;
+  action.sa_flags = 0;
+  sigemptyset(&action.sa_mask);
+  sigaction(SIGINT, &action, nullptr);
 
   std::cout << "Input Packet Size: ";
   std::cin >> packet_size;

@@ -4,15 +4,22 @@ project(libndsl)
 
 # for cpp
 set(CMAKE_CXX_STANDARD 11)
-
 # for asm
 enable_language(ASM)
 
-include(${libndsl_SOURCE_DIR}/src/sources.cmake)
+# debug options
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -pg")
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg")
+set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg")
 
-add_library(libndsl STATIC ${LIBNDSL_SRC})
+# release options
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 include_directories(${libndsl_SOURCE_DIR}/src)
+
+include(${libndsl_SOURCE_DIR}/src/sources.cmake)
+add_library(libndsl STATIC ${LIBNDSL_SRC})
+
 add_executable(coroutine test/testcase-coroutine.cc)
 add_executable(echo-server test/testcase-echo-server.cc)
 add_executable(echo-client test/testcase-echo-client.cc)

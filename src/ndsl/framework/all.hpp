@@ -184,6 +184,7 @@ class EventLoop : public std::enable_shared_from_this<EventLoop> {
  public:
   using Pointer = std::shared_ptr<EventLoop>;
   using ServiceMap = std::map<uint64_t, Service *>;
+  using ReadyList = std::list<Service *>;
 
   static inline EventLoop *GetCurrentEventLoop() { return current_event_loop; }
   static inline EventLoop *SetCurrentEventLoop(EventLoop *l) {
@@ -208,6 +209,7 @@ class EventLoop : public std::enable_shared_from_this<EventLoop> {
     if (iter == services_.end()) {
       ServiceType *s = new ServiceType(args...);
       services_.insert(std::make_pair(s->service_id(), s));
+      AddToReadyList(s);
 
       return s;
     } else {
@@ -225,6 +227,8 @@ class EventLoop : public std::enable_shared_from_this<EventLoop> {
     return reinterpret_cast<ServiceType *>(map_iter->second);
   }
   void DestroyService(uint64_t id);
+  void AddToReadyList(Service *s);
+  void RemoveFromReadyList(Service *s);
   int WatchPollerEvent(Pollable *pollable);
   int UnwatchPollerEvent(Pollable *pollable);
   int ModifyPollerEvent(Pollable *pollable);
@@ -235,6 +239,7 @@ class EventLoop : public std::enable_shared_from_this<EventLoop> {
  private:
   std::atomic<bool> running_;
   ServiceMap services_;
+  ReadyList ready_list_;
   int epfd_;
   int next_loop_timeout_;
   uint64_t next_event_id_;

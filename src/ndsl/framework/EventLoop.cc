@@ -18,6 +18,16 @@ void EventLoop::DestroyService(uint64_t id) {
   }
 }
 
+void EventLoop::AddToReadyList(Service *s) { ready_list_.emplace_back(s); }
+void EventLoop::RemoveFromReadyList(Service *s) {
+  for (auto it = ready_list_.begin(); it != ready_list_.end(); ++it) {
+    if (*it == s) {
+      ready_list_.erase(it);
+      break;
+    }
+  }
+}
+
 void EventLoop::RunOneTick() {
   int ev_num;
   struct epoll_event events[LIBNDSL_FRAMEWORK_MAX_EVENT_PER_LOOP];
@@ -45,8 +55,10 @@ void EventLoop::RunOneTick() {
     }
   }
 
-  for (auto i = services_.begin(); i != services_.end();) {
-    Service *s = i->second;
+  ReadyList saved_list(std::move(ready_list_));
+
+  for (auto i = saved_list.begin(); i != saved_list.end(); ++i) {
+    Service *s = *i;
 
     if (s->status() == Service::STATUS_READY) {
       Service::SetCurrentService(s);
@@ -54,11 +66,9 @@ void EventLoop::RunOneTick() {
     }
 
     if (s->status() == Service::STATUS_FINISHED) {
-      auto temp = i;
-      ++i;
-      services_.erase(temp);
-    } else {
-      ++i;
+      services_.erase(s->service_id());
+    } else if (s->status() == Service::STATUS_READY) {
+      AddToReadyList(s);
     }
   }
 }

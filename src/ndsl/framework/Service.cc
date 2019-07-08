@@ -8,9 +8,11 @@ std::atomic<uint64_t> ndsl::framework::Service::next_service_id_(
     Service::USER_USABLE_INIT_ID);
 
 void Service::HandleResponse(Event::Pointer event) {
-  if (wait_list_.count(event) > 0) {
-    wait_list_.erase(event);
+  auto iter = wait_list_.find(event);
+  if (iter != wait_list_.end()) {
+    wait_list_.erase(iter);
     if (wait_list_.size() == 0) {
+      host_loop_->AddToReadyList(this);
       SetStatus(Service::STATUS_READY);
     }
   }
@@ -18,5 +20,6 @@ void Service::HandleResponse(Event::Pointer event) {
 
 void Service::PushToWaitList(Event::Pointer event) {
   wait_list_.insert(event);
+  host_loop_->RemoveFromReadyList(this);
   SetStatus(Service::STATUS_HUNG);
 }
